@@ -1,0 +1,6 @@
+@TessoApi_HostAddress = http://localhost:5133
+
+GET {{TessoApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
