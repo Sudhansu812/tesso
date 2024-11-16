@@ -1,8 +1,15 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using System.Text;
+using TessoApi.Helpers;
+using TessoApi.Helpers.Interfaces;
 using TessoApi.Models.Identity;
+using TessoApi.Repository;
 using TessoApi.Repository.DB;
+using TessoApi.Repository.Interfaces;
 using TessoApi.Services;
 using TessoApi.Services.Interfaces;
 
@@ -13,10 +20,10 @@ builder.Configuration.SetBasePath(Directory.GetCurrentDirectory()).AddJsonFile($
 builder.Configuration.SetBasePath(Directory.GetCurrentDirectory()).AddJsonFile($"./Configurations/appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")}.json");
 #endregion
 
-#region
+#region DbContext
 string appDb = builder.Configuration.GetConnectionString("appDb") ?? throw new InvalidOperationException($"ConnectionsString {nameof(appDb)} not found.");
 string authDb = builder.Configuration.GetConnectionString("authDb") ?? throw new InvalidOperationException($"ConnectionsString {nameof(authDb)} not found.");
-string exceptionDb = builder.Configuration.GetConnectionString("AppDb") ?? throw new InvalidOperationException($"ConnectionsString {nameof(exceptionDb)} not found.");
+string exceptionDb = builder.Configuration.GetConnectionString("exceptionDb") ?? throw new InvalidOperationException($"ConnectionsString {nameof(exceptionDb)} not found.");
 
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(appDb));
 builder.Services.AddDbContext<AuthDbContext>(options => options.UseSqlServer(authDb));
@@ -25,10 +32,16 @@ builder.Services.AddDbContext<ExceptionDbContext>(options => options.UseNpgsql(a
 
 #region DI
 builder.Services.AddTransient<IAuthenticationService, AuthenticationService>();
+builder.Services.AddTransient<IProjectService, ProjectService>();
+builder.Services.AddTransient<IUserServices, UserServices>();
+
+builder.Services.AddTransient<IProjectRepository, ProjectRepository>();
+
+builder.Services.AddSingleton<IObjectValidationHelper, ObjectValidationHelper>();
 #endregion
 
 #region Authentication
-builder.Services.AddIdentity<User, IdentityRole>(options =>
+builder.Services.AddIdentity<User, IdentityRole<Guid>>(options =>
 {
     options.Password.RequireNonAlphanumeric = true;
     options.Password.RequiredLength = 8;
@@ -44,6 +57,24 @@ builder.Services.AddIdentity<User, IdentityRole>(options =>
 })
 .AddEntityFrameworkStores<AuthDbContext>()
 .AddDefaultTokenProviders();
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])),
+        ValidateLifetime = true
+    };
+});
 
 builder.Services.ConfigureApplicationCookie(options => 
 {
@@ -81,7 +112,6 @@ builder.Services.AddSwaggerGen(c =>
 #endregion
 
 builder.Services.AddControllers();
-
 
 var app = builder.Build();
 
