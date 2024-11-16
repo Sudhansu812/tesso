@@ -5,7 +5,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace TessoApi.Models.Identity
 {
     [Table("tblUser", Schema = "dbo")]
-    public class User : IdentityUser
+    public class User : IdentityUser<Guid>
     {
         [Required, Column("FirstName")]
         public string FirstName { get; set; }
