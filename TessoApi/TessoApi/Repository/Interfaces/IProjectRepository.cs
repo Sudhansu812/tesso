@@ -10,5 +10,6 @@ namespace TessoApi.Repository.Interfaces
         public Task<bool> UserProjectExist(Guid userId, string projectName);
         public Task<List<Project>> GetUserProjects(Guid userId);
         public Task<bool> SaveChangesAsync();
+        public Task<bool> DeleteProject(Project project);
     }
 }
