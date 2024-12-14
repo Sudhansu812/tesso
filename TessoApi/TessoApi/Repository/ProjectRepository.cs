@@ -37,6 +37,16 @@ namespace TessoApi.Repository
             return await _db.Projects.Where(p => p.CreatorId.Equals(userId) || p.OwnerId.Equals(userId)).ToListAsync();
         }
 
+        public async Task<bool> DeleteProject(Project project)
+        {
+            if (project == null)
+            {
+                throw new KeyNotFoundException();
+            }
+            _db.Projects.Remove(project);
+            return await SaveChangesAsync();
+        }
+
         public async Task<bool> SaveChangesAsync() => await _db.SaveChangesAsync() > 0;
     }
 }
