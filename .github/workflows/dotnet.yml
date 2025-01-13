@@ -1,0 +1,22 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Setup .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.x
+      - name: Restore Dependencies
+        run: dotnet restore ./TessoApi/TessoApi/TessoApi.csproj
+      - name: Build Project
+        run: dotnet build ./TessoApi/TessoApi/TessoApi.csproj --no-restore
