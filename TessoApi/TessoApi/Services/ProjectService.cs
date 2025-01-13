@@ -1,8 +1,6 @@
 ﻿using Microsoft.AspNetCore.JsonPatch;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Net;
-using TessoApi.DTOs.Auth;
 using TessoApi.DTOs.Project;
 using TessoApi.Exceptions;
 using TessoApi.Helpers.Interfaces;
@@ -11,7 +9,6 @@ using TessoApi.Models.Helper;
 using TessoApi.Models.Http;
 using TessoApi.Repository.Interfaces;
 using TessoApi.Services.Interfaces;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace TessoApi.Services
 {
