@@ -20,9 +20,3 @@ jobs:
         run: dotnet restore ./TessoApi/TessoApi/TessoApi.csproj
       - name: Build Project
         run: dotnet build ./TessoApi/TessoApi/TessoApi.csproj --no-restore
-      - name: Test Secret Variables
-        run: echo ${{ secrets.TEST_SECRET }}
-      - name: Test Repository Variables
-        run: echo ${{ github.repository.TEST_ENV }}
-      - name: Test Environment Variables
-        run: echo ${{ env.TEST_ENV }}
