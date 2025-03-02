@@ -16,4 +16,4 @@ jobs:
       - name: Restore Dependencies
         run: dotnet restore ./TessoApi/TessoApi/TessoApi.csproj
       - name: Build Project
-        run: dotnet build ./TessoApi/TessoApi/TessoApi.csproj --no-restore
+        run: dotnet build ./TessoApi/TessoApi/TessoApi.csproj --no-restore --configuration Development
