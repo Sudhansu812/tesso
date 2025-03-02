@@ -16,8 +16,7 @@ using TessoApi.Services.Interfaces;
 var builder = WebApplication.CreateBuilder(args);
 
 #region Appsettings Setup
-builder.Configuration.SetBasePath(Directory.GetCurrentDirectory()).AddJsonFile($"./Configurations/appsettings.json");
-builder.Configuration.SetBasePath(Directory.GetCurrentDirectory()).AddJsonFile($"./Configurations/appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")}.json");
+builder.Configuration.SetBasePath(Directory.GetCurrentDirectory()).AddJsonFile($"{Directory.GetCurrentDirectory()}\\Configurations\\appsettings.json");
 #endregion
 
 #region DbContext

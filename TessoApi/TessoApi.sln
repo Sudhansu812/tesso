@@ -13,13 +13,22 @@ EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
+		Development|Any CPU = Development|Any CPU
+		Production|Any CPU = Production|Any CPU
 		Release|Any CPU = Release|Any CPU
+		Staging|Any CPU = Staging|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{79743A4B-5638-467A-9E0F-696D6DF37977}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{79743A4B-5638-467A-9E0F-696D6DF37977}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{79743A4B-5638-467A-9E0F-696D6DF37977}.Development|Any CPU.ActiveCfg = Development|Any CPU
+		{79743A4B-5638-467A-9E0F-696D6DF37977}.Development|Any CPU.Build.0 = Development|Any CPU
+		{79743A4B-5638-467A-9E0F-696D6DF37977}.Production|Any CPU.ActiveCfg = Release|Any CPU
+		{79743A4B-5638-467A-9E0F-696D6DF37977}.Production|Any CPU.Build.0 = Release|Any CPU
 		{79743A4B-5638-467A-9E0F-696D6DF37977}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{79743A4B-5638-467A-9E0F-696D6DF37977}.Release|Any CPU.Build.0 = Release|Any CPU
+		{79743A4B-5638-467A-9E0F-696D6DF37977}.Staging|Any CPU.ActiveCfg = Staging|Any CPU
+		{79743A4B-5638-467A-9E0F-696D6DF37977}.Staging|Any CPU.Build.0 = Staging|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
