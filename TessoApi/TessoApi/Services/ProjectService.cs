@@ -33,12 +33,18 @@ namespace TessoApi.Services
                     Name = projectInput.Name,
                     Description = projectInput.Description,
                     CreatorId = userId,
-                    OwnerId = userId
                 };
 
                 project = await _projectRepository.Create(project);
+                
+                await AssignProjectOwner(new ProjectOwnerCreateDto
+                {
+                    ProjectId = project.Id,
+                    UserId = userId
+                });
 
                 string creatorFullName = await _userServices.GetUserFullName(userId);
+                
                 return new CustomHttpResponse<ReadProjectDto>
                 {
                     StatusCode = HttpStatusCode.Created,
@@ -47,7 +53,6 @@ namespace TessoApi.Services
                         Name = projectInput.Name,
                         Description = projectInput.Description,
                         Creator = creatorFullName,
-                        Owner = creatorFullName
                     },
                     Error = null
                 };
@@ -108,6 +113,51 @@ namespace TessoApi.Services
             }
         }
 
+        public async Task<CustomHttpResponse<ProjectOwnerReadDto>> AssignProjectOwner(ProjectOwnerCreateDto projectOwner)
+        {
+            try
+            {
+                ProjectOwner owner = new ProjectOwner
+                {
+                    ProjectId = projectOwner.ProjectId,
+                    UserId = projectOwner.UserId
+                };
+
+                await _projectRepository.AssignProjectOwner(owner);
+
+                List<Guid> ownerIds = await _projectRepository.GetProjectOwnerIds(projectOwner.ProjectId);
+
+                return new CustomHttpResponse<ProjectOwnerReadDto>
+                {
+                    StatusCode = HttpStatusCode.Created,
+                    Data = new ProjectOwnerReadDto
+                    {
+                        ProjectId = owner.ProjectId,
+                        OwnerIds = ownerIds
+                    },
+                    Error = null
+                };
+            }
+            catch (DbUpdateException due)
+            {
+                return new CustomHttpResponse<ProjectOwnerReadDto>
+                {
+                    StatusCode = HttpStatusCode.InternalServerError,
+                    Data = null,
+                    Error = due.Message
+                };
+            }
+            catch (Exception ex)
+            {
+                return new CustomHttpResponse<ProjectOwnerReadDto>
+                {
+                    StatusCode = HttpStatusCode.InternalServerError,
+                    Data = null,
+                    Error = ex.Message
+                };
+            }
+        }
+
         public async Task<CustomHttpResponse<ReadProjectDto>> GetProject(Guid projectId)
         {
             try
@@ -115,7 +165,6 @@ namespace TessoApi.Services
                 Project project = await _projectRepository.GetProject(projectId);
 
                 string creatorFullName = await _userServices.GetUserFullName(project.CreatorId);
-                string ownerFullName = await _userServices.GetUserFullName(project.OwnerId);
 
                 return new CustomHttpResponse<ReadProjectDto>
                 {
@@ -125,7 +174,6 @@ namespace TessoApi.Services
                         Name = project.Name,
                         Description = project.Description,
                         Creator = creatorFullName,
-                        Owner = ownerFullName
                     },
                     Error = null
                 };
@@ -169,14 +217,12 @@ namespace TessoApi.Services
                 foreach (var project in projects)
                 {
                     string creatorFullName = await _userServices.GetUserFullName(project.CreatorId);
-                    string ownerFullName = await _userServices.GetUserFullName(project.OwnerId);
 
                     projectDtos.Add(new ReadProjectDto
                     {
                         Name = project.Name,
                         Description = project.Description,
                         Creator = creatorFullName,
-                        Owner = ownerFullName
                     });
                 }
 
@@ -225,7 +271,6 @@ namespace TessoApi.Services
 
                 project.Name = projectDto.Name;
                 project.Description = projectDto.Description;
-                project.OwnerId = projectDto.OwnerId;
 
                 await _projectRepository.SaveChangesAsync();
 
@@ -234,7 +279,6 @@ namespace TessoApi.Services
                     Name = project.Name,
                     Description = project.Description,
                     Creator = await _userServices.GetUserFullName(project.CreatorId),
-                    Owner = await _userServices.GetUserFullName(project.OwnerId)
                 };
 
                 return new CustomHttpResponse<ReadProjectDto>
@@ -282,13 +326,11 @@ namespace TessoApi.Services
                 {
                     Description = project.Description,
                     Name = project.Name,
-                    OwnerId = project.OwnerId
                 };
                 projectPatch.ApplyTo(projectDto);
 
                 project.Name = projectDto.Name;
                 project.Description = projectDto.Description;
-                project.OwnerId = projectDto.OwnerId;
 
                 await _projectRepository.SaveChangesAsync();
 
@@ -297,7 +339,6 @@ namespace TessoApi.Services
                     Name = project.Name,
                     Description = project.Description,
                     Creator = await _userServices.GetUserFullName(project.CreatorId),
-                    Owner = await _userServices.GetUserFullName(project.OwnerId)
                 };
                 return new CustomHttpResponse<ReadProjectDto>
                 {

@@ -1,4 +1,5 @@
-﻿using TessoApi.Models;
+﻿using TessoApi.DTOs.Project;
+using TessoApi.Models;
 using TessoApi.Models.Http;
 
 namespace TessoApi.Repository.Interfaces
@@ -11,5 +12,8 @@ namespace TessoApi.Repository.Interfaces
         public Task<List<Project>> GetUserProjects(Guid userId);
         public Task<bool> SaveChangesAsync();
         public Task<bool> DeleteProject(Project project);
+        public Task<ProjectOwner> AssignProjectOwner(ProjectOwner projectOwner);
+        public Task<List<Guid>> GetProjectOwnerIds(Guid projectId);
+        public Task<bool> ProjectExist(Guid projectId);
     }
 }

@@ -12,5 +12,6 @@ namespace TessoApi.Services.Interfaces
         public Task<CustomHttpResponse<ReadProjectDto>> UpdateProject(Guid projectId, UpdateProjectDto projectDto);
         public Task<CustomHttpResponse<ReadProjectDto>> PatchProject(Guid projectId, JsonPatchDocument<UpdateProjectDto> projectPatch);
         public Task<CustomHttpResponse<bool>> DeleteProject(Guid projectId);
+        public Task<CustomHttpResponse<ProjectOwnerReadDto>> AssignProjectOwner(ProjectOwnerCreateDto projectOwner);
     }
 }

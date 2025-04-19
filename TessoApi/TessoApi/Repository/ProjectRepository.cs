@@ -29,12 +29,26 @@ namespace TessoApi.Repository
 
         public async Task<bool> UserProjectExist(Guid userId, string projectName)
         {
-            return await _db.Projects.AnyAsync(p => (p.CreatorId.Equals(userId) || p.OwnerId.Equals(userId)) && p.Name.Equals(projectName));
+            return await _db.Projects.AnyAsync(p => (p.CreatorId.Equals(userId)) && p.Name.Equals(projectName));
         }
 
         public async Task<List<Project>> GetUserProjects(Guid userId)
         {
-            return await _db.Projects.Where(p => p.CreatorId.Equals(userId) || p.OwnerId.Equals(userId)).ToListAsync();
+            IQueryable<Project> projects = _db.Projects.Where(p => p.CreatorId.Equals(userId));
+            projects.Union(
+                _db.ProjectOwners
+                .Where(po => po.UserId.Equals(userId))
+                .Include(proj => proj.Project)
+                .AsSplitQuery()
+                .Select(po => po.Project)
+                );
+
+            return await projects.ToListAsync();
+        }
+
+        public async Task<List<Guid>> GetProjectOwnerIds(Guid projectId)
+        {
+            return await _db.ProjectOwners.AsNoTracking().Where(po => po.ProjectId.Equals(projectId)).Select(po => po.UserId).ToListAsync();
         }
 
         public async Task<bool> DeleteProject(Project project)
@@ -45,6 +59,18 @@ namespace TessoApi.Repository
             }
             _db.Projects.Remove(project);
             return await SaveChangesAsync();
+        }
+
+        public async Task<ProjectOwner> AssignProjectOwner(ProjectOwner projectOwner)
+        {
+            await _db.ProjectOwners.AddAsync(projectOwner);
+            await SaveChangesAsync();
+            return projectOwner;
+        }
+
+        public async Task<bool> ProjectExist(Guid projectId)
+        {
+            return (await _db.Projects.FindAsync(projectId)) is not null;
         }
 
         public async Task<bool> SaveChangesAsync() => await _db.SaveChangesAsync() > 0;

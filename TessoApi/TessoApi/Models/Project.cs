@@ -4,7 +4,7 @@ using TessoApi.Models.Identity;
 
 namespace TessoApi.Models
 {
-    [Table("tblProjects", Schema = "dbo")]
+    [Table(nameof(Project), Schema = "dbo")]
     public class Project
     {
         [Key, Column("Id")]
@@ -18,8 +18,7 @@ namespace TessoApi.Models
 
         [Column("CreatorId")]
         public Guid CreatorId { get; set; }
-
-        [Column("OwnerId")]
-        public Guid OwnerId { get; set; }
+        public List<ProjectOwner> ProjectOwners { get; set; }
+        public List<Collection> Collections { get; } = [];
     }
 }
