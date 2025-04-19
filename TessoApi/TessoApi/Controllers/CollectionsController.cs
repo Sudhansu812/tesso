@@ -17,7 +17,7 @@ namespace TessoApi.Controllers
         public async Task<IActionResult> CreateCollection([FromBody] CreateCollectionDto collection)
         {
             CustomHttpResponse<ReadCollectionDto> response = await _collectionService.CreateCollection(collection);
-            return Ok();
+            return StatusCode((int)response.StatusCode, response.Data);
         }
 
         [HttpGet("user/{userId:guid}")]
