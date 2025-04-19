@@ -29,12 +29,18 @@ builder.Services.AddDbContext<AuthDbContext>(options => options.UseSqlServer(aut
 builder.Services.AddDbContext<ExceptionDbContext>(options => options.UseNpgsql(authDb));
 #endregion
 
+#region Automapper
+builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
+#endregion
+
 #region DI
 builder.Services.AddTransient<IAuthenticationService, AuthenticationService>();
 builder.Services.AddTransient<IProjectService, ProjectService>();
 builder.Services.AddTransient<IUserServices, UserServices>();
+builder.Services.AddTransient<ICollectionService, CollectionService>();
 
 builder.Services.AddTransient<IProjectRepository, ProjectRepository>();
+builder.Services.AddTransient<ICollectionRepository, CollectionRepository>();
 
 builder.Services.AddSingleton<IObjectValidationHelper, ObjectValidationHelper>();
 #endregion

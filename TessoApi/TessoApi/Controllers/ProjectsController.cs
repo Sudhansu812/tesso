@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using TessoApi.DTOs.Project;
 using TessoApi.Services.Interfaces;
 using TessoApi.Models.Http;
-using Azure;
 using Microsoft.AspNetCore.JsonPatch;
 
 namespace TessoApi.Controllers
