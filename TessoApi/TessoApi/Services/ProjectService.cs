@@ -1,8 +1,6 @@
 ﻿using Microsoft.AspNetCore.JsonPatch;
-using Microsoft.EntityFrameworkCore;
 using System.Net;
 using TessoApi.DTOs.Project;
-using TessoApi.Exceptions;
 using TessoApi.Helpers.Interfaces;
 using TessoApi.Models;
 using TessoApi.Models.Helper;
@@ -20,343 +18,228 @@ namespace TessoApi.Services
 
         public async Task<CustomHttpResponse<ReadProjectDto>> Create(CreateProjectDto projectInput)
         {
-            try
+            ObjectValidationResult validationResult = _objectValidationHelper.ValidateObject(projectInput);
+            if (!validationResult.IsValid)
             {
-                ObjectValidationResult validationResult = _objectValidationHelper.ValidateObject(projectInput);
-                if (!validationResult.IsValid)
-                {
-                    throw new ArgumentNullException(validationResult.Error);
-                }
-                Guid userId = await _userServices.GetUserId();
-                Project project = new Project
+                throw new ArgumentNullException(validationResult.Error);
+            }
+            Guid userId = await _userServices.GetUserId();
+            Project project = new Project
+            {
+                Name = projectInput.Name,
+                Description = projectInput.Description,
+                CreatorId = userId,
+            };
+
+            project = await _projectRepository.Create(project);
+
+            await AssignProjectOwner(new ProjectOwnerCreateDto
+            {
+                ProjectId = project.Id,
+                UserId = userId
+            });
+
+            string creatorFullName = await _userServices.GetUserFullName(userId);
+
+            return new CustomHttpResponse<ReadProjectDto>
+            {
+                StatusCode = HttpStatusCode.Created,
+                Data = new ReadProjectDto
                 {
                     Name = projectInput.Name,
                     Description = projectInput.Description,
-                    CreatorId = userId,
-                    OwnerId = userId
-                };
+                    Creator = creatorFullName,
+                },
+                Error = null
+            };
+        }
 
-                project = await _projectRepository.Create(project);
+        public async Task<CustomHttpResponse<ProjectOwnerReadDto>> AssignProjectOwner(ProjectOwnerCreateDto projectOwner)
+        {
+            ProjectOwner owner = new ProjectOwner
+            {
+                ProjectId = projectOwner.ProjectId,
+                UserId = projectOwner.UserId
+            };
 
-                string creatorFullName = await _userServices.GetUserFullName(userId);
-                return new CustomHttpResponse<ReadProjectDto>
-                {
-                    StatusCode = HttpStatusCode.Created,
-                    Data = new ReadProjectDto
-                    {
-                        Name = projectInput.Name,
-                        Description = projectInput.Description,
-                        Creator = creatorFullName,
-                        Owner = creatorFullName
-                    },
-                    Error = null
-                };
-            }
-            catch (ProjectAlreadyExistException pae)
+            await _projectRepository.AssignProjectOwner(owner);
+
+            List<Guid> ownerIds = await _projectRepository.GetProjectOwnerIds(projectOwner.ProjectId);
+
+            return new CustomHttpResponse<ProjectOwnerReadDto>
             {
-                return new CustomHttpResponse<ReadProjectDto>
+                StatusCode = HttpStatusCode.Created,
+                Data = new ProjectOwnerReadDto
                 {
-                    StatusCode = HttpStatusCode.BadRequest,
-                    Data = null,
-                    Error = pae.Message
-                };
-            }
-            catch (UserNotFoundException unf)
-            {
-                return new CustomHttpResponse<ReadProjectDto>
-                {
-                    StatusCode = HttpStatusCode.InternalServerError,
-                    Data = null,
-                    Error = unf.Message
-                };
-            }
-            catch (JwtTokenExtractionException jte)
-            {
-                return new CustomHttpResponse<ReadProjectDto>
-                {
-                    StatusCode = HttpStatusCode.InternalServerError,
-                    Data = null,
-                    Error = jte.Message
-                };
-            }
-            catch (ArgumentNullException ane)
-            {
-                return new CustomHttpResponse<ReadProjectDto>
-                {
-                    StatusCode = HttpStatusCode.BadRequest,
-                    Data = null,
-                    Error = ane.Message
-                };
-            }
-            catch (DbUpdateException due)
-            {
-                return new CustomHttpResponse<ReadProjectDto>
-                {
-                    StatusCode = HttpStatusCode.InternalServerError,
-                    Data = null,
-                    Error = due.Message
-                };
-            }
-            catch (Exception ex)
-            {
-                return new CustomHttpResponse<ReadProjectDto>
-                {
-                    StatusCode = HttpStatusCode.InternalServerError,
-                    Data = null,
-                    Error = ex.Message
-                };
-            }
+                    ProjectId = owner.ProjectId,
+                    OwnerIds = ownerIds
+                },
+                Error = null
+            };
         }
 
         public async Task<CustomHttpResponse<ReadProjectDto>> GetProject(Guid projectId)
         {
-            try
+            Project project = await _projectRepository.GetProject(projectId);
+
+            string creatorFullName = await _userServices.GetUserFullName(project.CreatorId);
+
+            return new CustomHttpResponse<ReadProjectDto>
             {
-                Project project = await _projectRepository.GetProject(projectId);
+                StatusCode = HttpStatusCode.OK,
+                Data = new ReadProjectDto
+                {
+                    Name = project.Name,
+                    Description = project.Description,
+                    Creator = creatorFullName,
+                },
+                Error = null
+            };
+        }
 
+        public async Task<CustomHttpResponse<List<ReadProjectDto>>> GetUserProjects(Guid userId)
+        {
+            List<Project> projects = await _projectRepository.GetUserProjects(userId);
+            List<ReadProjectDto> projectDtos = new List<ReadProjectDto>();
+
+            foreach (var project in projects)
+            {
                 string creatorFullName = await _userServices.GetUserFullName(project.CreatorId);
-                string ownerFullName = await _userServices.GetUserFullName(project.OwnerId);
 
+                projectDtos.Add(new ReadProjectDto
+                {
+                    Name = project.Name,
+                    Description = project.Description,
+                    Creator = creatorFullName,
+                });
+            }
+
+            return new CustomHttpResponse<List<ReadProjectDto>>
+            {
+                StatusCode = HttpStatusCode.OK,
+                Data = projectDtos,
+                Error = null
+            };
+        }
+
+        public async Task<CustomHttpResponse<ReadProjectDto>> UpdateProject(Guid projectId, UpdateProjectDto projectDto)
+        {
+            if (projectDto is null)
+            {
                 return new CustomHttpResponse<ReadProjectDto>
                 {
-                    StatusCode = HttpStatusCode.OK,
-                    Data = new ReadProjectDto
-                    {
-                        Name = project.Name,
-                        Description = project.Description,
-                        Creator = creatorFullName,
-                        Owner = ownerFullName
-                    },
-                    Error = null
+                    StatusCode = HttpStatusCode.BadRequest,
+                    Data = null,
+                    Error = "Project data is required."
                 };
             }
-            catch (KeyNotFoundException knf)
+            Project project = await _projectRepository.GetProject(projectId);
+
+            if (project == null)
             {
                 return new CustomHttpResponse<ReadProjectDto>
                 {
                     StatusCode = HttpStatusCode.NotFound,
                     Data = null,
-                    Error = knf.Message
+                    Error = "Project not found."
                 };
             }
-            catch (DbContextException ane)
+
+            project.Name = projectDto.Name;
+            project.Description = projectDto.Description;
+
+            await _projectRepository.SaveChangesAsync();
+
+            ReadProjectDto readProject = new()
+            {
+                Name = project.Name,
+                Description = project.Description,
+                Creator = await _userServices.GetUserFullName(project.CreatorId),
+            };
+
+            return new CustomHttpResponse<ReadProjectDto>
+            {
+                StatusCode = HttpStatusCode.OK,
+                Data = readProject,
+                Error = null
+            };
+        }
+
+        public async Task<CustomHttpResponse<ReadProjectDto>> PatchProject(Guid projectId, JsonPatchDocument<UpdateProjectDto> projectPatch)
+        {
+            if (projectPatch is null)
             {
                 return new CustomHttpResponse<ReadProjectDto>
                 {
                     StatusCode = HttpStatusCode.BadRequest,
                     Data = null,
-                    Error = ane.Message
+                    Error = "Project data is required."
                 };
             }
-            catch (Exception ex)
+            Project project = await _projectRepository.GetProject(projectId);
+            if (project == null)
             {
                 return new CustomHttpResponse<ReadProjectDto>
                 {
-                    StatusCode = HttpStatusCode.InternalServerError,
+                    StatusCode = HttpStatusCode.NotFound,
                     Data = null,
-                    Error = ex.Message
+                    Error = "Project not found."
                 };
             }
-        }
-
-        public async Task<CustomHttpResponse<List<ReadProjectDto>>> GetUserProjects(Guid userId)
-        {
-            try
+            UpdateProjectDto projectDto = new()
             {
-                List<Project> projects = await _projectRepository.GetUserProjects(userId);
-                List<ReadProjectDto> projectDtos = new List<ReadProjectDto>();
+                Description = project.Description,
+                Name = project.Name,
+            };
+            projectPatch.ApplyTo(projectDto);
 
-                foreach (var project in projects)
-                {
-                    string creatorFullName = await _userServices.GetUserFullName(project.CreatorId);
-                    string ownerFullName = await _userServices.GetUserFullName(project.OwnerId);
+            project.Name = projectDto.Name;
+            project.Description = projectDto.Description;
 
-                    projectDtos.Add(new ReadProjectDto
-                    {
-                        Name = project.Name,
-                        Description = project.Description,
-                        Creator = creatorFullName,
-                        Owner = ownerFullName
-                    });
-                }
+            await _projectRepository.SaveChangesAsync();
 
-                return new CustomHttpResponse<List<ReadProjectDto>>
-                {
-                    StatusCode = HttpStatusCode.OK,
-                    Data = projectDtos,
-                    Error = null
-                };
-            }
-            catch (Exception ex)
+            ReadProjectDto readProject = new()
             {
-                return new CustomHttpResponse<List<ReadProjectDto>>
-                {
-                    StatusCode = HttpStatusCode.InternalServerError,
-                    Data = null,
-                    Error = ex.Message
-                };
-            }
-        }
-
-        public async Task<CustomHttpResponse<ReadProjectDto>> UpdateProject(Guid projectId, UpdateProjectDto projectDto)
-        {
-            try
+                Name = project.Name,
+                Description = project.Description,
+                Creator = await _userServices.GetUserFullName(project.CreatorId),
+            };
+            return new CustomHttpResponse<ReadProjectDto>
             {
-                if (projectDto is null)
-                {
-                    return new CustomHttpResponse<ReadProjectDto>
-                    {
-                        StatusCode = HttpStatusCode.BadRequest,
-                        Data = null,
-                        Error = "Project data is required."
-                    };
-                }
-                Project project = await _projectRepository.GetProject(projectId);
-
-                if (project == null)
-                {
-                    return new CustomHttpResponse<ReadProjectDto>
-                    {
-                        StatusCode = HttpStatusCode.NotFound,
-                        Data = null,
-                        Error = "Project not found."
-                    };
-                }
-
-                project.Name = projectDto.Name;
-                project.Description = projectDto.Description;
-                project.OwnerId = projectDto.OwnerId;
-
-                await _projectRepository.SaveChangesAsync();
-
-                ReadProjectDto readProject = new()
-                {
-                    Name = project.Name,
-                    Description = project.Description,
-                    Creator = await _userServices.GetUserFullName(project.CreatorId),
-                    Owner = await _userServices.GetUserFullName(project.OwnerId)
-                };
-
-                return new CustomHttpResponse<ReadProjectDto>
-                {
-                    StatusCode = HttpStatusCode.OK,
-                    Data = readProject,
-                    Error = null
-                };
-            }
-            catch (Exception ex)
-            {
-                return new CustomHttpResponse<ReadProjectDto>
-                {
-                    StatusCode = HttpStatusCode.InternalServerError,
-                    Data = null,
-                    Error = ex.Message
-                };
-            }
-        }
-
-        public async Task<CustomHttpResponse<ReadProjectDto>> PatchProject(Guid projectId, JsonPatchDocument<UpdateProjectDto> projectPatch)
-        {
-            try
-            {
-                if (projectPatch is null)
-                {
-                    return new CustomHttpResponse<ReadProjectDto>
-                    {
-                        StatusCode = HttpStatusCode.BadRequest,
-                        Data = null,
-                        Error = "Project data is required."
-                    };
-                }
-                Project project = await _projectRepository.GetProject(projectId);
-                if (project == null)
-                {
-                    return new CustomHttpResponse<ReadProjectDto>
-                    {
-                        StatusCode = HttpStatusCode.NotFound,
-                        Data = null,
-                        Error = "Project not found."
-                    };
-                }
-                UpdateProjectDto projectDto = new()
-                {
-                    Description = project.Description,
-                    Name = project.Name,
-                    OwnerId = project.OwnerId
-                };
-                projectPatch.ApplyTo(projectDto);
-
-                project.Name = projectDto.Name;
-                project.Description = projectDto.Description;
-                project.OwnerId = projectDto.OwnerId;
-
-                await _projectRepository.SaveChangesAsync();
-
-                ReadProjectDto readProject = new()
-                {
-                    Name = project.Name,
-                    Description = project.Description,
-                    Creator = await _userServices.GetUserFullName(project.CreatorId),
-                    Owner = await _userServices.GetUserFullName(project.OwnerId)
-                };
-                return new CustomHttpResponse<ReadProjectDto>
-                {
-                    StatusCode = HttpStatusCode.OK,
-                    Data = readProject,
-                    Error = null
-                };
-            }
-            catch (Exception ex)
-            {
-                return new CustomHttpResponse<ReadProjectDto>
-                {
-                    StatusCode = HttpStatusCode.InternalServerError,
-                    Data = null,
-                    Error = ex.Message
-                };
-            }
+                StatusCode = HttpStatusCode.OK,
+                Data = readProject,
+                Error = null
+            };
         }
 
         public async Task<CustomHttpResponse<bool>> DeleteProject(Guid projectId)
         {
-            try
+            Project project = await _projectRepository.GetProject(projectId);
+            if (project == null)
             {
-                Project project = await _projectRepository.GetProject(projectId);
-                if (project == null)
-                {
-                    return new CustomHttpResponse<bool>
-                    {
-                        StatusCode = HttpStatusCode.NotFound,
-                        Data = false,
-                        Error = "Project not found."
-                    };
-                }
-                bool status = await _projectRepository.DeleteProject(project);
-                if (!status)
-                {
-                    return new CustomHttpResponse<bool>
-                    {
-                        StatusCode = HttpStatusCode.InternalServerError,
-                        Data = false,
-                        Error = "Failed to delete project."
-                    };
-                }
                 return new CustomHttpResponse<bool>
                 {
-                    StatusCode = HttpStatusCode.OK,
-                    Data = status,
-                    Error = null
+                    StatusCode = HttpStatusCode.NotFound,
+                    Data = false,
+                    Error = "Project not found."
                 };
             }
-            catch (Exception ex)
+            bool status = await _projectRepository.DeleteProject(project);
+            if (!status)
             {
                 return new CustomHttpResponse<bool>
                 {
                     StatusCode = HttpStatusCode.InternalServerError,
                     Data = false,
-                    Error = ex.Message
+                    Error = "Failed to delete project."
                 };
             }
+            return new CustomHttpResponse<bool>
+            {
+                StatusCode = HttpStatusCode.OK,
+                Data = status,
+                Error = null
+            };
         }
     }
 }
