@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Identity;
-using System.IdentityModel.Tokens.Jwt;
 using TessoApi.Exceptions;
 using TessoApi.Models.Identity;
 using TessoApi.Services.Interfaces;
