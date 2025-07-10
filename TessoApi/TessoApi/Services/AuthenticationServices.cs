@@ -22,204 +22,124 @@ namespace TessoApi.Services
 
         public async Task<CustomHttpResponse<AuthenticationResponse>> Authenticate(LogInDto user)
         {
-            try
+            ObjectValidationResult validationResult = _objectValidationHelper.ValidateObject(user);
+            if (!validationResult.IsValid)
             {
-                ObjectValidationResult validationResult = _objectValidationHelper.ValidateObject(user);
-                if (!validationResult.IsValid)
-                {
-                    throw new ArgumentNullException(validationResult.Error);
-                }
+                throw new ArgumentNullException(validationResult.Error);
+            }
 
-                User? user2 = await _userManager.FindByNameAsync(user.UserId) ?? await _userManager.FindByEmailAsync(user.UserId);
-                if (user2 is null || !await _userManager.CheckPasswordAsync(user2, user.Password))
-                {
-                    throw new UnauthorizedAccessException(user2 == null ? "Invalid User ID." : "Incorrect password.");
-                }
+            User? user2 = await _userManager.FindByNameAsync(user.UserId) ?? await _userManager.FindByEmailAsync(user.UserId);
+            if (user2 is null || !await _userManager.CheckPasswordAsync(user2, user.Password))
+            {
+                throw new UnauthorizedAccessException(user2 == null ? "Invalid User ID." : "Incorrect password.");
+            }
 
-                List<string> roles = (List<string>)await _userManager.GetRolesAsync(user2);
-                List<Claim> claims =
-                [
-                    new Claim(JwtRegisteredClaimNames.UniqueName, user2.UserName),
+            List<string> roles = (List<string>)await _userManager.GetRolesAsync(user2);
+            List<Claim> claims =
+            [
+                new Claim(JwtRegisteredClaimNames.UniqueName, user2.UserName),
                     new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-                ];
+            ];
 
-                foreach (var role in roles)
-                {
-                    claims.Add(new Claim(ClaimTypes.Role, role));
-                }
-
-                string? jwtSecret = _configuration["Jwt:Key"];
-                if (jwtSecret is null)
-                {
-                    throw new JwtTokenGenerationException("JWT Key not found.");
-                }
-
-                SymmetricSecurityKey signInKey = new(Encoding.UTF8.GetBytes(jwtSecret));
-
-                JwtSecurityToken token = new JwtSecurityToken(
-                    issuer: _configuration["Jwt:Issuer"],
-                    audience: _configuration["Jwt:Audience"],
-                    notBefore: DateTime.Now,
-                    expires: DateTime.Now.AddHours(3),
-                    claims: claims,
-                    signingCredentials: new SigningCredentials(signInKey, SecurityAlgorithms.HmacSha256)
-                );
-
-                string jwtToken = new JwtSecurityTokenHandler().WriteToken(token);
-                if (jwtToken is null)
-                {
-                    throw new JwtTokenGenerationException("JWT token generation failed.");
-                }
-
-                var response = new AuthenticationResponse
-                {
-                    IsAuthenticated = true,
-                    Token = jwtToken,
-                    StatusMessage = "Authenticated",
-                    Expiration = token.ValidTo
-                };
-
-                /*
-                ExternalLoginInfo? loginInfo = await _signInManager.GetExternalLoginInfoAsync();
-                if (loginInfo is not null)
-                {
-                    Claim? emailClaim = loginInfo.Principal.Claims.FirstOrDefault(e => e.Type.Equals(ClaimTypes.Email));
-                    Claim? userClaim = loginInfo.Principal.Claims.FirstOrDefault(u => u.Type.Equals(ClaimTypes.Name));
-
-                    if (emailClaim is not null && userClaim is not null)
-                    {
-                        User user = new User { Email = emailClaim.Value, UserName = userClaim.Value };
-                    }
-                }
-                */
-
-                return new CustomHttpResponse<AuthenticationResponse>
-                {
-                    StatusCode = HttpStatusCode.OK,
-                    Data = response,
-                    Error = string.Empty
-                };
-            }
-            catch (UnauthorizedAccessException ua)
+            foreach (var role in roles)
             {
-                
-                return new CustomHttpResponse<AuthenticationResponse>
-                {
-                    StatusCode = HttpStatusCode.Unauthorized,
-                    Data = new AuthenticationResponse { IsAuthenticated = false, Token = string.Empty, StatusMessage = ua.Message },
-                    Error = ua.Message
-                };
+                claims.Add(new Claim(ClaimTypes.Role, role));
             }
-            catch (JwtTokenGenerationException jtge)
+
+            string? jwtSecret = _configuration["Jwt:Key"];
+            if (jwtSecret is null)
             {
-                return new CustomHttpResponse<AuthenticationResponse>
-                {
-                    StatusCode = HttpStatusCode.InternalServerError,
-                    Data = new AuthenticationResponse { IsAuthenticated = false, Token = string.Empty, StatusMessage = jtge.Message },
-                    Error = jtge.Message
-                };
+                throw new JwtTokenGenerationException("JWT Key not found.");
             }
-            catch (ArgumentNullException ane)
+
+            SymmetricSecurityKey signInKey = new(Encoding.UTF8.GetBytes(jwtSecret));
+
+            JwtSecurityToken token = new JwtSecurityToken(
+                issuer: _configuration["Jwt:Issuer"],
+                audience: _configuration["Jwt:Audience"],
+                notBefore: DateTime.Now,
+                expires: DateTime.Now.AddHours(3),
+                claims: claims,
+                signingCredentials: new SigningCredentials(signInKey, SecurityAlgorithms.HmacSha256)
+            );
+
+            string jwtToken = new JwtSecurityTokenHandler().WriteToken(token);
+            if (jwtToken is null)
             {
-                return new CustomHttpResponse<AuthenticationResponse>
-                {
-                    StatusCode = HttpStatusCode.BadRequest,
-                    Data = new AuthenticationResponse { IsAuthenticated = false, Token = string.Empty, StatusMessage = ane.Message },
-                    Error = ane.Message
-                };
+                throw new JwtTokenGenerationException("JWT token generation failed.");
             }
-            catch (Exception ex)
+
+            var response = new AuthenticationResponse
             {
-                string message = "Something went wrong with the request. Please contact support.\n" + ex.Message;
-                return new CustomHttpResponse<AuthenticationResponse>
+                IsAuthenticated = true,
+                Token = jwtToken,
+                StatusMessage = "Authenticated",
+                Expiration = token.ValidTo
+            };
+
+            /*
+            ExternalLoginInfo? loginInfo = await _signInManager.GetExternalLoginInfoAsync();
+            if (loginInfo is not null)
+            {
+                Claim? emailClaim = loginInfo.Principal.Claims.FirstOrDefault(e => e.Type.Equals(ClaimTypes.Email));
+                Claim? userClaim = loginInfo.Principal.Claims.FirstOrDefault(u => u.Type.Equals(ClaimTypes.Name));
+
+                if (emailClaim is not null && userClaim is not null)
                 {
-                    StatusCode = HttpStatusCode.InternalServerError,
-                    Data = new AuthenticationResponse { IsAuthenticated = false, Token = string.Empty, StatusMessage = message },
-                    Error = message
-                };
+                    User user = new User { Email = emailClaim.Value, UserName = userClaim.Value };
+                }
             }
+            */
+
+            return new CustomHttpResponse<AuthenticationResponse>
+            {
+                StatusCode = HttpStatusCode.OK,
+                Data = response,
+                Error = string.Empty
+            };
         }
 
         public async Task<CustomHttpResponse<AuthenticationResponse>> Register(RegisterDto registrationDetails)
         {
-            try
+            ObjectValidationResult validationResult = _objectValidationHelper.ValidateObject(registrationDetails);
+            if (!validationResult.IsValid)
             {
-                ObjectValidationResult validationResult = _objectValidationHelper.ValidateObject(registrationDetails);
-                if (!validationResult.IsValid)
+                throw new ArgumentNullException(validationResult.Error);
+            }
+
+            if (await _userManager.FindByEmailAsync(registrationDetails.EmailAddress) is not null
+                || await _userManager.FindByNameAsync(registrationDetails.UserName) is not null)
+            {
+                throw new UserAlreadyExistsException("User already exists.");
+            }
+
+            User user = new()
+            {
+                Email = registrationDetails.EmailAddress,
+                UserName = registrationDetails.UserName,
+                FirstName = registrationDetails.FirstName,
+                LastName = registrationDetails.LastName,
+                EmailConfirmed = true
+            };
+
+            IdentityResult result = await _userManager.CreateAsync(user, registrationDetails.Password);
+
+            if (!result.Succeeded)
+            {
+                StringBuilder sb = new();
+                foreach (var err in result.Errors)
                 {
-                    throw new ArgumentNullException(validationResult.Error);
+                    sb.AppendLine(err.Code + ": " + err.Description);
                 }
-
-                if (await _userManager.FindByEmailAsync(registrationDetails.EmailAddress) is not null
-                    || await _userManager.FindByNameAsync(registrationDetails.UserName) is not null)
-                {
-                    throw new UserAlreadyExistsException("User already exists.");
-                }
-
-                User user = new()
-                {
-                    Email = registrationDetails.EmailAddress,
-                    UserName = registrationDetails.UserName,
-                    FirstName = registrationDetails.FirstName,
-                    LastName = registrationDetails.LastName,
-                    EmailConfirmed = true
-                };
-
-                IdentityResult result = await _userManager.CreateAsync(user, registrationDetails.Password);
-
-                if (!result.Succeeded)
-                {
-                    StringBuilder sb = new();
-                    foreach (var err in result.Errors)
-                    {
-                        sb.AppendLine(err.Code + ": " + err.Description);
-                    }
-                    throw new RegistrationFailedException(sb.ToString());
-                }
-
-                return new CustomHttpResponse<AuthenticationResponse>
-                {
-                    StatusCode = HttpStatusCode.Created,
-                    Data = new AuthenticationResponse { IsAuthenticated = true, StatusMessage = "Registration Successful", Token = Guid.NewGuid().ToString() },
-                    Error = string.Empty
-                };
+                throw new RegistrationFailedException(sb.ToString());
             }
-            catch (UserAlreadyExistsException uae)
+
+            return new CustomHttpResponse<AuthenticationResponse>
             {
-                return new CustomHttpResponse<AuthenticationResponse>
-                {
-                    StatusCode = HttpStatusCode.Conflict,
-                    Data = new AuthenticationResponse { IsAuthenticated = false, StatusMessage = uae.Message, Token = Guid.NewGuid().ToString() },
-                    Error = uae.Message
-                };
-            }
-            catch (RegistrationFailedException rf)
-            {
-                return new CustomHttpResponse<AuthenticationResponse>
-                {
-                    StatusCode = HttpStatusCode.InternalServerError,
-                    Data = new AuthenticationResponse { IsAuthenticated = false, StatusMessage = rf.Message, Token = Guid.NewGuid().ToString() },
-                    Error = rf.Message
-                };
-            }
-            catch (ArgumentNullException ane)
-            {
-                return new CustomHttpResponse<AuthenticationResponse>
-                {
-                    StatusCode = HttpStatusCode.BadRequest,
-                    Data = new AuthenticationResponse { IsAuthenticated = false, Token = string.Empty, StatusMessage = ane.Message },
-                    Error = ane.Message
-                };
-            }
-            catch (Exception ex)
-            {
-                return new CustomHttpResponse<AuthenticationResponse>
-                {
-                    StatusCode = HttpStatusCode.InternalServerError,
-                    Data = new AuthenticationResponse { IsAuthenticated = false, StatusMessage = ex.Message, Token = Guid.NewGuid().ToString() },
-                    Error = ex.Message
-                };
-            }
+                StatusCode = HttpStatusCode.Created,
+                Data = new AuthenticationResponse { IsAuthenticated = true, StatusMessage = "Registration Successful", Token = Guid.NewGuid().ToString() },
+                Error = string.Empty
+            };
         }
     }
 }

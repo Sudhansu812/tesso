@@ -6,6 +6,7 @@ using Microsoft.OpenApi.Models;
 using System.Text;
 using TessoApi.Helpers;
 using TessoApi.Helpers.Interfaces;
+using TessoApi.Helpers.Middlewares;
 using TessoApi.Models.Identity;
 using TessoApi.Repository;
 using TessoApi.Repository.DB;
@@ -19,7 +20,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.SetBasePath(Directory.GetCurrentDirectory()).AddJsonFile($"{Directory.GetCurrentDirectory()}\\Configurations\\appsettings.json");
 #endregion
 
-#region DbContext
+#region Database Context
 string appDb = builder.Configuration.GetConnectionString("appDb") ?? throw new InvalidOperationException($"ConnectionsString {nameof(appDb)} not found.");
 string authDb = builder.Configuration.GetConnectionString("authDb") ?? throw new InvalidOperationException($"ConnectionsString {nameof(authDb)} not found.");
 string exceptionDb = builder.Configuration.GetConnectionString("exceptionDb") ?? throw new InvalidOperationException($"ConnectionsString {nameof(exceptionDb)} not found.");
@@ -120,6 +121,7 @@ builder.Services.AddControllers();
 
 var app = builder.Build();
 
+app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -130,7 +132,5 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
 app.MapControllers();
-
 app.Run();
